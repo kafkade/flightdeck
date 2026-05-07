@@ -1,0 +1,45 @@
+{
+  "name": "flightdeck",
+  "version": "1.0.0",
+  "description": "A Chromium browser extension that lets developers toggle query-string parameters on specific URL patterns — a lightweight alternative to proxy tools for request-decoration workflows.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:unit": "jest",
+    "test:e2e": "npx playwright test",
+    "lint": "eslint src/ tests/",
+    "package": "node scripts/package.js",
+    "release:patch": "pwsh ./scripts/release.ps1 patch",
+    "release:minor": "pwsh ./scripts/release.ps1 minor",
+    "release:major": "pwsh ./scripts/release.ps1 major"
+  },
+  "keywords": [
+    "browser-extension",
+    "query-string",
+    "developer-tools",
+    "chromium",
+    "manifest-v3"
+  ],
+  "author": "kafkade",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kafkade/flightdeck.git"
+  },
+  "homepage": "https://github.com/kafkade/flightdeck",
+  "bugs": {
+    "url": "https://github.com/kafkade/flightdeck/issues"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.59.1",
+    "archiver": "^7.0.1",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0",
+    "jest": "^30.3.0",
+    "sharp": "^0.34.5"
+  }
+}

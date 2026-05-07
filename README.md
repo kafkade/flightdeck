@@ -95,9 +95,25 @@ npm test               # Run Jest unit tests
 npm run lint           # Run ESLint
 npm run test:e2e       # Run Playwright E2E tests (requires headed browser)
 npm run package        # Build dist/flightdeck.zip for distribution
+npm run release:patch  # Prepare patch release (bump version + changelog stamp + tag)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions and PR guidelines.
+
+### Release Automation
+
+- Local release prep script: `scripts/release.ps1`
+- CI release workflow: `.github/workflows/release.yml`
+- Trigger: push a `v*` tag (or run workflow manually)
+- CI behavior: validates, packages, creates/updates GitHub Release, and publishes to Chrome/Edge when store secrets are configured
+
+## Project Docs
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [PRIVACY.md](PRIVACY.md)
+- [PUBLISHING.md](PUBLISHING.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Architecture
 

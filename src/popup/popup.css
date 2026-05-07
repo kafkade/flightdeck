@@ -1,0 +1,404 @@
+/* FlightDeck — popup styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #e0e0e0;
+  background: #1a1a1a;
+}
+
+.popup {
+  width: 340px;
+  padding: 0;
+}
+
+/* Header */
+.header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #2a2a2a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+}
+
+.toggle--header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: auto;
+  cursor: pointer;
+}
+
+.toggle-label {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* Service groups */
+.group {
+  padding: 4px 0;
+}
+
+.group-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #666;
+  padding: 10px 16px 4px;
+}
+
+/* Individual rule row */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  transition: background 0.15s;
+}
+
+.rule:hover {
+  background: #222;
+}
+
+.rule--active {
+  background: rgba(74, 144, 217, 0.08);
+}
+
+.rule-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rule-label {
+  font-weight: 500;
+  font-size: 13px;
+  color: #d0d0d0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rule--active .rule-label {
+  color: #fff;
+}
+
+.rule-detail {
+  font-size: 11px;
+  color: #666;
+  font-family: "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rule-group {
+  color: #888;
+  font-size: 11px;
+  margin-left: 2px;
+  cursor: help;
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #444;
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: #999;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+
+input:checked + .slider {
+  background: #4A90D9;
+}
+
+input:checked + .slider::before {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+/* Keyboard accessibility — focus ring */
+.toggle input:focus-visible + .slider {
+  outline: 2px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+.rule--active:hover {
+  background: rgba(74, 144, 217, 0.12);
+}
+
+.btn-icon:focus-visible,
+.btn-add:focus-visible,
+.btn-save:focus-visible,
+.btn-cancel:focus-visible {
+  outline: 2px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+.btn-save:active {
+  background: #3a7cc0;
+}
+
+.btn-cancel:active {
+  background: #555;
+}
+
+.btn-add:active {
+  background: #555;
+}
+
+/* Custom Rules Section */
+.custom-section {
+  border-top: 1px solid #2a2a2a;
+  padding-bottom: 8px;
+}
+
+.custom-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 16px;
+}
+
+.custom-section-header .group-header {
+  padding: 10px 16px 4px;
+}
+
+.custom-empty {
+  font-size: 12px;
+  color: #555;
+  padding: 8px 16px 12px;
+  font-style: italic;
+}
+
+/* Action buttons (edit/delete) on custom rules */
+.rule-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+}
+
+.btn-icon--danger:hover {
+  background: rgba(215, 58, 74, 0.15);
+}
+
+/* Add button */
+.btn-add {
+  background: #333;
+  border: 1px solid #444;
+  color: #ccc;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-add:hover {
+  background: #444;
+  border-color: #4A90D9;
+  color: #fff;
+}
+
+/* Inline form */
+.rule-form {
+  padding: 10px 16px 12px;
+  border-top: 1px solid #2a2a2a;
+  animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.form-field {
+  margin-bottom: 8px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 3px;
+}
+
+.form-field input[type="text"] {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 13px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #e0e0e0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-field input[type="text"]:focus {
+  border-color: #4A90D9;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-field--half {
+  flex: 1;
+}
+
+.form-optional {
+  color: #555;
+  font-weight: normal;
+}
+
+.form-hint {
+  color: #555;
+  font-weight: normal;
+  font-size: 10px;
+}
+
+/* Action buttons */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-save, .btn-cancel {
+  padding: 5px 14px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-save {
+  background: #4A90D9;
+  color: #fff;
+}
+
+.btn-save:hover {
+  background: #5a9ee6;
+}
+
+.btn-cancel {
+  background: #333;
+  color: #aaa;
+  border: 1px solid #444;
+}
+
+.btn-cancel:hover {
+  background: #444;
+  color: #fff;
+}
+
+/* Footer */
+.footer {
+  padding: 8px 16px;
+  border-top: 1px solid #2a2a2a;
+  font-size: 11px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  letter-spacing: 0.3px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-footer {
+  background: none;
+  border: 1px solid #333;
+  color: #888;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-footer:hover {
+  background: #2a2a2a;
+  color: #ccc;
+  border-color: #555;
+}
+
+.btn-footer:focus-visible {
+  outline: 2px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+.btn-footer:active {
+  background: #333;
+}

@@ -1,0 +1,228 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.2.3). Leave empty to use package.json version."
+        required: false
+        type: string
+      auto_publish:
+        description: "Auto-publish to Chrome/Edge stores"
+        required: false
+        default: true
+        type: boolean
+      publish_chrome:
+        description: "Publish to Chrome Web Store"
+        required: false
+        default: true
+        type: boolean
+      publish_edge:
+        description: "Publish to Edge Add-ons"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, Release, Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate
+        run: |
+          npm run lint
+          npm test
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          MANIFEST_VERSION="$(node -p "require('./src/manifest.json').version")"
+          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error::package.json version ($VERSION) does not match manifest.json version ($MANIFEST_VERSION)"
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="v$VERSION"
+          fi
+
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag ($TAG) must match package/manifest version (v$VERSION)."
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            AUTO_PUBLISH="${{ inputs.auto_publish }}"
+          else
+            AUTO_PUBLISH="true"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "auto_publish=$AUTO_PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "zip_path=dist/flightdeck.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          NOTES="$(awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {in_section=1; next}
+            in_section && $0 ~ "^## \\[" {exit}
+            in_section {print}
+          ' CHANGELOG.md)"
+
+          if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::Could not find CHANGELOG section for version $VERSION (## [$VERSION])."
+            exit 1
+          fi
+
+          {
+            echo "release_notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Determine pre-release status
+        id: prerelease
+        shell: bash
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          MAJOR="${VERSION%%.*}"
+          if [ "$MAJOR" = "0" ]; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          ZIP="${{ steps.meta.outputs.zip_path }}"
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes "${{ steps.notes.outputs.release_notes }}" \
+              ${{ steps.prerelease.outputs.flag }} \
+              "$ZIP"
+          fi
+
+      - name: Publish to Chrome Web Store
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_chrome) }}
+        shell: bash
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          if [ -z "$CHROME_EXTENSION_ID" ] || [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
+            echo "::warning::Chrome store secrets are missing; skipping Chrome publish."
+            exit 0
+          fi
+
+          npx chrome-webstore-upload-cli@3 upload \
+            --source "${{ steps.meta.outputs.zip_path }}" \
+            --extension-id "$CHROME_EXTENSION_ID" \
+            --client-id "$CHROME_CLIENT_ID" \
+            --client-secret "$CHROME_CLIENT_SECRET" \
+            --refresh-token "$CHROME_REFRESH_TOKEN"
+
+          if [ "${{ steps.meta.outputs.auto_publish }}" = "true" ]; then
+            npx chrome-webstore-upload-cli@3 publish \
+              --extension-id "$CHROME_EXTENSION_ID" \
+              --client-id "$CHROME_CLIENT_ID" \
+              --client-secret "$CHROME_CLIENT_SECRET" \
+              --refresh-token "$CHROME_REFRESH_TOKEN"
+          else
+            echo "Chrome upload completed (auto_publish=false)."
+          fi
+
+      - name: Publish to Edge Add-ons (v1.1 API)
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish_edge) }}
+        shell: bash
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+        run: |
+          if [ -z "$EDGE_PRODUCT_ID" ] || [ -z "$EDGE_CLIENT_ID" ] || [ -z "$EDGE_API_KEY" ]; then
+            echo "::warning::Edge store secrets are missing; skipping Edge publish."
+            exit 0
+          fi
+
+          ZIP="${{ steps.meta.outputs.zip_path }}"
+          API_ROOT="https://api.addons.microsoftedge.microsoft.com"
+
+          # Upload package to draft submission
+          echo "Uploading package to Edge Add-ons..."
+          UPLOAD_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: ApiKey $EDGE_API_KEY" \
+            -H "X-ClientID: $EDGE_CLIENT_ID" \
+            -H "Content-Type: application/zip" \
+            -X POST \
+            -T "$ZIP" \
+            "$API_ROOT/v1/products/$EDGE_PRODUCT_ID/submissions/draft/package")
+
+          HTTP_CODE=$(echo "$UPLOAD_RESPONSE" | tail -1)
+          BODY=$(echo "$UPLOAD_RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" != "202" ]; then
+            echo "::error::Edge upload failed (HTTP $HTTP_CODE): $BODY"
+            exit 1
+          fi
+          echo "Edge upload accepted (202)."
+
+          # Publish the draft (if auto_publish)
+          if [ "${{ steps.meta.outputs.auto_publish }}" = "true" ]; then
+            echo "Publishing Edge submission..."
+            PUBLISH_RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -H "Authorization: ApiKey $EDGE_API_KEY" \
+              -H "X-ClientID: $EDGE_CLIENT_ID" \
+              -X POST \
+              -d '{ "notes": "Automated release via GitHub Actions" }' \
+              "$API_ROOT/v1/products/$EDGE_PRODUCT_ID/submissions")
+
+            PUB_CODE=$(echo "$PUBLISH_RESPONSE" | tail -1)
+            PUB_BODY=$(echo "$PUBLISH_RESPONSE" | sed '$d')
+
+            if [ "$PUB_CODE" != "202" ]; then
+              echo "::error::Edge publish failed (HTTP $PUB_CODE): $PUB_BODY"
+              exit 1
+            fi
+            echo "Edge publish accepted (202). Submission is now in review."
+          else
+            echo "Edge upload completed (auto_publish=false)."
+          fi

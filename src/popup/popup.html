@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="popup.css">
+  <title>FlightDeck</title>
+</head>
+<body>
+  <div class="popup">
+    <header class="header">
+      <h1 class="title">✈ FlightDeck</h1>
+      <label class="toggle toggle--header" title="Show build info overlay on pages with version metadata">
+        <input type="checkbox" id="version-overlay-toggle">
+        <span class="slider"></span>
+        <span class="toggle-label">Build Info</span>
+      </label>
+    </header>
+    <div id="rules-container"></div>
+
+    <!-- Custom Rules Section -->
+    <div class="custom-section">
+      <div class="custom-section-header">
+        <span class="group-header">Custom Rules</span>
+        <button id="btn-add-rule" class="btn-add" title="Add custom rule">+</button>
+      </div>
+      <div id="custom-rules-list"></div>
+      <div id="custom-empty" class="custom-empty">No custom rules yet. Click + to add one.</div>
+
+      <!-- Inline add/edit form (hidden by default) -->
+      <form id="rule-form" class="rule-form" hidden>
+        <div class="form-field">
+          <label for="form-label">Label</label>
+          <input type="text" id="form-label" placeholder="My custom rule" required>
+        </div>
+        <div class="form-field">
+          <label for="form-hosts">Hosts <span class="form-hint">(comma-separated)</span></label>
+          <input type="text" id="form-hosts" list="host-suggestions" placeholder="example.com, api.example.com" required>
+          <datalist id="host-suggestions"></datalist>
+        </div>
+        <div class="form-row">
+          <div class="form-field form-field--half">
+            <label for="form-key">Param key</label>
+            <input type="text" id="form-key" placeholder="key" required>
+          </div>
+          <div class="form-field form-field--half">
+            <label for="form-value">Param value</label>
+            <input type="text" id="form-value" placeholder="value" required>
+          </div>
+        </div>
+        <div class="form-field">
+          <label for="form-group">Exclusion group <span class="form-optional">(optional)</span></label>
+          <input type="text" id="form-group" placeholder="e.g. environment">
+        </div>
+        <input type="hidden" id="form-edit-id" value="">
+        <div class="form-actions">
+          <button type="submit" class="btn-save">Save</button>
+          <button type="button" id="btn-cancel" class="btn-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Footer with version and import/export -->
+    <footer class="footer" id="footer">
+      <div class="footer-actions">
+        <button id="btn-export" class="btn-footer" title="Export rules as JSON">⬇ Export</button>
+        <button id="btn-import" class="btn-footer" title="Import rules from JSON">⬆ Import</button>
+        <input type="file" id="import-file" accept=".json" hidden>
+      </div>
+      <span id="version"></span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

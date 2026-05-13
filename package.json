@@ -1,6 +1,6 @@
 {
   "name": "flightdeck",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A Chromium browser extension that lets developers toggle query-string parameters on specific URL patterns — a lightweight alternative to proxy tools for request-decoration workflows.",
   "main": "index.js",
   "directories": {

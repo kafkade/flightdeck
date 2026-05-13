@@ -40,14 +40,21 @@ src/
 
 ### Data flow
 
-1. **Popup** sends messages (`toggle`, `add-rule`, `delete-rule`, etc.) to the **service worker** via `chrome.runtime.sendMessage`.
+1. **Popup** sends messages (`toggle`, `add-rule`, `delete-rule`, `import-rules`, `reset-defaults`, etc.) to the **service worker** via `chrome.runtime.sendMessage`.
 2. **Service worker** validates and persists state through `FlightDeckStorage`, then compiles enabled rules via `FlightDeckRules.compileRules()` and applies them with `chrome.declarativeNetRequest.updateDynamicRules()`.
 3. Multiple rules targeting the **same host** are merged into a single DNR rule (DNR does not chain redirects). Duplicate param keys on the same host resolve last-writer-wins.
 4. **Storage** writes to `chrome.storage.local` (primary) with best-effort mirroring to `chrome.storage.sync` for cross-device state. On first run, it tries restoring from sync before seeding defaults.
 
 ### Rule model
 
-Each rule (preset or custom) has: `id`, `label`, `enabled`, `hosts[]`, `params[{key, value}]`, `group`, `builtin`. Rules sharing a non-null `group` are mutually exclusive — enabling one disables the others.
+All rules live in a single `rules[]` array (schema v2). Each rule has: `id`, `label`, `enabled`, `hosts[]`, `params[{key, value}]`, `group`. Rules sharing a non-null `group` are mutually exclusive — enabling one disables the others. Any rule can be edited or deleted. Shipped defaults can be restored via `resetDefaults()`.
+
+### Import strategies
+
+Import accepts v1 (presets/customRules) and v2 (rules) formats. Three strategies:
+- **merge** — add new rules only, skip existing IDs
+- **overwrite** — update existing rules by ID, add new ones
+- **replace** — wipe all rules, use imported file as new state
 
 ## Git Policy
 

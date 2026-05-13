@@ -4,9 +4,9 @@
 const STORAGE_KEY = "flightdeck";
 const SYNC_KEY = "flightdeck_sync";
 const HOST_HISTORY_KEY = "flightdeck_hosts";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
-// Example presets shipped with the extension (illustrative, not service-specific)
+// Example rules shipped with the extension
 function getDefaults() {
   return [
     {
@@ -15,8 +15,7 @@ function getDefaults() {
       enabled: false,
       hosts: ["example.com"],
       params: [{ key: "debug", value: "true" }],
-      group: null,
-      builtin: true
+      group: null
     },
     {
       id: "example-staging",
@@ -24,8 +23,7 @@ function getDefaults() {
       enabled: false,
       hosts: ["example.com"],
       params: [{ key: "env", value: "staging" }],
-      group: "example-env",
-      builtin: true
+      group: "example-env"
     },
     {
       id: "example-production",
@@ -33,10 +31,44 @@ function getDefaults() {
       enabled: false,
       hosts: ["example.com"],
       params: [{ key: "env", value: "production" }],
-      group: "example-env",
-      builtin: true
+      group: "example-env"
     }
   ];
+}
+
+// Migrate v1 state (presets[] + customRules[]) to v2 (rules[])
+function migrateV1(state) {
+  const rules = [];
+  if (Array.isArray(state.presets)) {
+    for (const p of state.presets) {
+      const rule = Object.assign({}, p);
+      delete rule.builtin;
+      rules.push(rule);
+    }
+  }
+  if (Array.isArray(state.customRules)) {
+    for (const c of state.customRules) {
+      const rule = Object.assign({}, c);
+      delete rule.builtin;
+      rules.push(rule);
+    }
+  }
+  return { rules, schemaVersion: SCHEMA_VERSION };
+}
+
+// Normalize raw state from storage into a valid v2 state
+function normalizeState(raw) {
+  if (!raw) {
+    return { rules: getDefaults(), schemaVersion: SCHEMA_VERSION };
+  }
+  if (raw.schemaVersion === 1) {
+    return migrateV1(raw);
+  }
+  if (raw.schemaVersion === SCHEMA_VERSION) {
+    return raw;
+  }
+  // Unknown future version or corrupt — seed defaults
+  return { rules: getDefaults(), schemaVersion: SCHEMA_VERSION };
 }
 
 // Load state from chrome.storage.local, seeding defaults on first run.
@@ -44,28 +76,27 @@ function getDefaults() {
 async function loadState() {
   return new Promise((resolve) => {
     chrome.storage.local.get({ [STORAGE_KEY]: null }, (result) => {
-      let state = result[STORAGE_KEY];
+      const raw = result[STORAGE_KEY];
 
-      if (!state || state.schemaVersion !== SCHEMA_VERSION) {
-        // Try to restore from sync before falling back to defaults
-        chrome.storage.sync.get({ [SYNC_KEY]: null }, (syncResult) => {
-          const syncState = syncResult[SYNC_KEY];
-          if (syncState && syncState.schemaVersion === SCHEMA_VERSION) {
-            state = syncState;
-          } else {
-            state = {
-              presets: getDefaults(),
-              customRules: [],
-              schemaVersion: SCHEMA_VERSION
-            };
-          }
-          saveState(state);
-          resolve(state);
-        });
+      if (raw && raw.schemaVersion === SCHEMA_VERSION) {
+        resolve(raw);
         return;
       }
 
-      resolve(state);
+      if (raw && raw.schemaVersion === 1) {
+        const migrated = normalizeState(raw);
+        saveState(migrated);
+        resolve(migrated);
+        return;
+      }
+
+      // No local state — try sync before falling back to defaults
+      chrome.storage.sync.get({ [SYNC_KEY]: null }, (syncResult) => {
+        const syncRaw = syncResult[SYNC_KEY];
+        const state = normalizeState(syncRaw);
+        saveState(state);
+        resolve(state);
+      });
     });
   });
 }
@@ -78,7 +109,6 @@ async function saveState(state) {
       try {
         chrome.storage.sync.set({ [SYNC_KEY]: state }, () => {
           if (chrome.runtime.lastError) {
-            // Sync quota exceeded or sync disabled — not critical
             console.warn("FlightDeck: sync mirror failed:", chrome.runtime.lastError.message);
           }
         });
@@ -90,20 +120,19 @@ async function saveState(state) {
   });
 }
 
-// Toggle a preset or custom rule by ID.
+// Toggle a rule by ID.
 // Enforces mutual-exclusion groups: enabling a rule with a group
 // automatically disables all other rules in the same group.
 async function toggleRule(id, enabled) {
   const state = await loadState();
-  const allRules = [...state.presets, ...state.customRules];
-  const target = allRules.find((r) => r.id === id);
+  const target = state.rules.find((r) => r.id === id);
   if (!target) return state;
 
   target.enabled = enabled;
 
   // Enforce exclusion group
   if (enabled && target.group) {
-    for (const rule of allRules) {
+    for (const rule of state.rules) {
       if (rule.id !== id && rule.group === target.group) {
         rule.enabled = false;
       }
@@ -114,36 +143,31 @@ async function toggleRule(id, enabled) {
   return state;
 }
 
-// Add a custom rule. Returns the updated state.
-async function addCustomRule(rule) {
+// Add a rule. Returns the updated state.
+async function addRule(rule) {
   const state = await loadState();
-  state.customRules.push({
+  state.rules.push({
     id: rule.id,
     label: rule.label,
     enabled: false,
     hosts: rule.hosts,
     params: rule.params,
-    group: rule.group || null,
-    builtin: false
+    group: rule.group || null
   });
   await saveState(state);
-
-  // Track hosts for autocomplete
   await addHostsToHistory(rule.hosts);
-
   return state;
 }
 
-// Update an existing custom rule by ID.
-async function updateCustomRule(id, updates) {
+// Update an existing rule by ID.
+async function updateRule(id, updates) {
   const state = await loadState();
-  const rule = state.customRules.find((r) => r.id === id);
+  const rule = state.rules.find((r) => r.id === id);
   if (!rule) return state;
 
   Object.assign(rule, updates);
   await saveState(state);
 
-  // Track any new hosts
   if (updates.hosts) {
     await addHostsToHistory(updates.hosts);
   }
@@ -151,22 +175,42 @@ async function updateCustomRule(id, updates) {
   return state;
 }
 
-// Delete a custom rule by ID. Built-in presets cannot be deleted.
-async function deleteCustomRule(id) {
+// Delete a rule by ID. Any rule can be deleted.
+async function deleteRule(id) {
   const state = await loadState();
-  state.customRules = state.customRules.filter((r) => r.id !== id);
+  state.rules = state.rules.filter((r) => r.id !== id);
   await saveState(state);
   return state;
 }
 
-// Get all enabled rules (presets + custom)
+// Get all enabled rules
 function getEnabledRules(state) {
-  return [...state.presets, ...state.customRules].filter((r) => r.enabled);
+  return state.rules.filter((r) => r.enabled);
+}
+
+// Restore missing default rules (does not overwrite modified defaults)
+async function resetDefaults() {
+  const state = await loadState();
+  const existingIds = new Set(state.rules.map((r) => r.id));
+  const defaults = getDefaults();
+
+  for (const def of defaults) {
+    if (!existingIds.has(def.id)) {
+      state.rules.push(def);
+    }
+  }
+
+  await saveState(state);
+  return state;
+}
+
+// Check if a rule ID is one of the shipped defaults
+function isDefaultId(id) {
+  return getDefaults().some((d) => d.id === id);
 }
 
 // --- Host History for Autocomplete ---
 
-// Get the list of previously used hosts
 async function getHostHistory() {
   return new Promise((resolve) => {
     chrome.storage.local.get({ [HOST_HISTORY_KEY]: [] }, (result) => {
@@ -175,7 +219,6 @@ async function getHostHistory() {
   });
 }
 
-// Add hosts to the history (deduplicates)
 async function addHostsToHistory(hosts) {
   const existing = await getHostHistory();
   const set = new Set(existing);
@@ -187,11 +230,10 @@ async function addHostsToHistory(hosts) {
   });
 }
 
-// Collect all hosts currently used in presets and custom rules
 async function rebuildHostHistory() {
   const state = await loadState();
   const allHosts = new Set();
-  for (const rule of [...state.presets, ...state.customRules]) {
+  for (const rule of state.rules) {
     for (const h of rule.hosts) {
       allHosts.add(h);
     }
@@ -207,14 +249,17 @@ if (typeof globalThis !== "undefined") {
     loadState,
     saveState,
     toggleRule,
-    addCustomRule,
-    updateCustomRule,
-    deleteCustomRule,
+    addRule,
+    updateRule,
+    deleteRule,
     getDefaults,
     getEnabledRules,
+    resetDefaults,
+    isDefaultId,
     getHostHistory,
     addHostsToHistory,
     rebuildHostHistory,
+    normalizeState,
     SCHEMA_VERSION
   };
 }

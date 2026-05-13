@@ -1,12 +1,13 @@
 // FlightDeck — rule compilation engine
-// Converts the preset/custom rule model into declarativeNetRequest dynamic rules.
+// Converts the unified rule model into declarativeNetRequest dynamic rules.
 
 // Compile enabled rules into DNR dynamic rule objects.
 // All params targeting the same host are merged into a single DNR rule,
 // because DNR does not chain multiple redirect rules for the same URL.
 // Rule IDs are assigned sequentially starting at 1.
 function compileRules(state) {
-  const enabled = [...state.presets, ...state.customRules].filter((r) => r.enabled);
+  const rules = state.rules || [];
+  const enabled = rules.filter((r) => r.enabled);
 
   // Group all params by host
   const hostParams = {};

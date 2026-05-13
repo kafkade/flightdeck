@@ -92,21 +92,21 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
-          NOTES="$(awk -v v="$VERSION" '
+          awk -v v="$VERSION" '
             $0 ~ "^## \\[" v "\\]" {in_section=1; next}
             in_section && $0 ~ "^## \\[" {exit}
             in_section {print}
-          ' CHANGELOG.md)"
+          ' CHANGELOG.md > /tmp/release_notes.txt
 
-          if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
+          if [ ! -s /tmp/release_notes.txt ] || [ -z "$(tr -d '[:space:]' < /tmp/release_notes.txt)" ]; then
             echo "::error::Could not find CHANGELOG section for version $VERSION (## [$VERSION])."
             exit 1
           fi
 
           {
-            echo "release_notes<<EOF"
-            echo "$NOTES"
-            echo "EOF"
+            echo "release_notes<<RELEASE_NOTES_EOF"
+            cat /tmp/release_notes.txt
+            echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Determine pre-release status

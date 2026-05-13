@@ -18,54 +18,70 @@
     </header>
     <div id="rules-container"></div>
 
-    <!-- Custom Rules Section -->
-    <div class="custom-section">
-      <div class="custom-section-header">
-        <span class="group-header">Custom Rules</span>
-        <button id="btn-add-rule" class="btn-add" title="Add custom rule">+</button>
+    <!-- Inline add/edit form (hidden by default) -->
+    <form id="rule-form" class="rule-form" hidden>
+      <div class="form-field">
+        <label for="form-label">Label</label>
+        <input type="text" id="form-label" placeholder="My custom rule" required>
       </div>
-      <div id="custom-rules-list"></div>
-      <div id="custom-empty" class="custom-empty">No custom rules yet. Click + to add one.</div>
+      <div class="form-field">
+        <label for="form-hosts">Hosts <span class="form-hint">(comma-separated)</span></label>
+        <input type="text" id="form-hosts" list="host-suggestions" placeholder="example.com, api.example.com" required>
+        <datalist id="host-suggestions"></datalist>
+      </div>
+      <div class="form-row">
+        <div class="form-field form-field--half">
+          <label for="form-key">Param key</label>
+          <input type="text" id="form-key" placeholder="key" required>
+        </div>
+        <div class="form-field form-field--half">
+          <label for="form-value">Param value</label>
+          <input type="text" id="form-value" placeholder="value" required>
+        </div>
+      </div>
+      <div class="form-field">
+        <label for="form-group">Exclusion group <span class="form-optional">(optional)</span></label>
+        <input type="text" id="form-group" placeholder="e.g. environment">
+      </div>
+      <input type="hidden" id="form-edit-id" value="">
+      <div class="form-actions">
+        <button type="submit" class="btn-save">Save</button>
+        <button type="button" id="btn-cancel" class="btn-cancel">Cancel</button>
+      </div>
+    </form>
 
-      <!-- Inline add/edit form (hidden by default) -->
-      <form id="rule-form" class="rule-form" hidden>
-        <div class="form-field">
-          <label for="form-label">Label</label>
-          <input type="text" id="form-label" placeholder="My custom rule" required>
-        </div>
-        <div class="form-field">
-          <label for="form-hosts">Hosts <span class="form-hint">(comma-separated)</span></label>
-          <input type="text" id="form-hosts" list="host-suggestions" placeholder="example.com, api.example.com" required>
-          <datalist id="host-suggestions"></datalist>
-        </div>
-        <div class="form-row">
-          <div class="form-field form-field--half">
-            <label for="form-key">Param key</label>
-            <input type="text" id="form-key" placeholder="key" required>
-          </div>
-          <div class="form-field form-field--half">
-            <label for="form-value">Param value</label>
-            <input type="text" id="form-value" placeholder="value" required>
-          </div>
-        </div>
-        <div class="form-field">
-          <label for="form-group">Exclusion group <span class="form-optional">(optional)</span></label>
-          <input type="text" id="form-group" placeholder="e.g. environment">
-        </div>
-        <input type="hidden" id="form-edit-id" value="">
-        <div class="form-actions">
-          <button type="submit" class="btn-save">Save</button>
-          <button type="button" id="btn-cancel" class="btn-cancel">Cancel</button>
-        </div>
-      </form>
+    <!-- Import strategy dialog (hidden by default) -->
+    <div id="import-dialog" class="import-dialog" hidden>
+      <div class="import-dialog-header">Import Rules</div>
+      <div class="import-dialog-info" id="import-file-info"></div>
+      <div class="import-strategies">
+        <label class="import-strategy">
+          <input type="radio" name="import-strategy" value="merge" checked>
+          <span><strong>Add new only</strong> — skip rules with matching IDs</span>
+        </label>
+        <label class="import-strategy">
+          <input type="radio" name="import-strategy" value="overwrite">
+          <span><strong>Update matching + add new</strong> — overwrite existing rules with same IDs</span>
+        </label>
+        <label class="import-strategy">
+          <input type="radio" name="import-strategy" value="replace">
+          <span><strong>Replace all rules</strong> — remove current rules and use imported file</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="btn-import-confirm" class="btn-save">Import</button>
+        <button type="button" id="btn-import-cancel" class="btn-cancel">Cancel</button>
+      </div>
     </div>
 
-    <!-- Footer with version and import/export -->
+    <!-- Footer with version and actions -->
     <footer class="footer" id="footer">
       <div class="footer-actions">
+        <button id="btn-add-rule" class="btn-footer" title="Add new rule">+ Add</button>
         <button id="btn-export" class="btn-footer" title="Export rules as JSON">⬇ Export</button>
         <button id="btn-import" class="btn-footer" title="Import rules from JSON">⬆ Import</button>
         <input type="file" id="import-file" accept=".json" hidden>
+        <button id="btn-restore" class="btn-footer btn-footer--subtle" title="Restore missing default rules">↺ Defaults</button>
       </div>
       <span id="version"></span>
     </footer>

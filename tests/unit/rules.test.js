@@ -1,4 +1,4 @@
-// Unit tests for FlightDeck rule compilation engine (rules.js)
+// Unit tests for FlightDeck rule compilation engine (rules.js) — schema v2
 
 beforeEach(() => {
   jest.resetModules();
@@ -6,19 +6,18 @@ beforeEach(() => {
   require("../../src/rules.js");
 });
 
-function makeState(presets, customRules = []) {
-  return { presets, customRules, schemaVersion: 1 };
+function makeState(rules) {
+  return { rules, schemaVersion: 2 };
 }
 
-function makePreset(overrides = {}) {
+function makeRule(overrides = {}) {
   return {
-    id: "test-preset",
-    label: "Test Preset",
+    id: "test-rule",
+    label: "Test Rule",
     enabled: false,
     hosts: ["example.com"],
     params: [{ key: "debug", value: "true" }],
     group: null,
-    builtin: true,
     ...overrides
   };
 }
@@ -27,22 +26,22 @@ function makePreset(overrides = {}) {
 // Empty state
 // ---------------------------------------------------------------------------
 test("compileRules returns empty array when no rules are enabled", () => {
-  const state = makeState([makePreset({ enabled: false })]);
+  const state = makeState([makeRule({ enabled: false })]);
   const result = FlightDeckRules.compileRules(state);
   expect(result).toEqual([]);
 });
 
-test("compileRules returns empty array for empty presets and customRules", () => {
-  const state = makeState([], []);
+test("compileRules returns empty array for empty rules", () => {
+  const state = makeState([]);
   const result = FlightDeckRules.compileRules(state);
   expect(result).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
-// Single preset → single DNR rule
+// Single rule → single DNR rule
 // ---------------------------------------------------------------------------
-test("single enabled preset produces one DNR rule", () => {
-  const state = makeState([makePreset({ enabled: true })]);
+test("single enabled rule produces one DNR rule", () => {
+  const state = makeState([makeRule({ enabled: true })]);
   const rules = FlightDeckRules.compileRules(state);
 
   expect(rules).toHaveLength(1);
@@ -67,11 +66,11 @@ test("single enabled preset produces one DNR rule", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Multi-host preset → multiple DNR rules
+// Multi-host rule → multiple DNR rules
 // ---------------------------------------------------------------------------
-test("multi-host preset produces one DNR rule per host", () => {
+test("multi-host rule produces one DNR rule per host", () => {
   const state = makeState([
-    makePreset({
+    makeRule({
       id: "multi-host",
       enabled: true,
       hosts: ["example.com", "api.example.com"],
@@ -92,8 +91,8 @@ test("multi-host preset produces one DNR rule per host", () => {
 // ---------------------------------------------------------------------------
 test("multiple rules for the same host are merged into one DNR rule", () => {
   const state = makeState([
-    makePreset({ id: "a", enabled: true, hosts: ["example.com"], params: [{ key: "debug", value: "true" }] }),
-    makePreset({ id: "b", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "staging" }] })
+    makeRule({ id: "a", enabled: true, hosts: ["example.com"], params: [{ key: "debug", value: "true" }] }),
+    makeRule({ id: "b", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "staging" }] })
   ]);
   const rules = FlightDeckRules.compileRules(state);
 
@@ -110,29 +109,13 @@ test("multiple rules for the same host are merged into one DNR rule", () => {
 // ---------------------------------------------------------------------------
 test("rules for different hosts produce separate DNR rules", () => {
   const state = makeState([
-    makePreset({ id: "a", enabled: true, hosts: ["example.com"] }),
-    makePreset({ id: "b", enabled: false, hosts: ["example.com"] }),
-    makePreset({ id: "c", enabled: true, hosts: ["api.example.com", "cdn.example.com"], params: [{ key: "env", value: "staging" }] })
+    makeRule({ id: "a", enabled: true, hosts: ["example.com"] }),
+    makeRule({ id: "b", enabled: false, hosts: ["example.com"] }),
+    makeRule({ id: "c", enabled: true, hosts: ["api.example.com", "cdn.example.com"], params: [{ key: "env", value: "staging" }] })
   ]);
   const rules = FlightDeckRules.compileRules(state);
 
-  // example.com (1 rule) + api.example.com (1 rule) + cdn.example.com (1 rule) = 3
   expect(rules).toHaveLength(3);
-});
-
-// ---------------------------------------------------------------------------
-// Custom rules compiled alongside presets
-// ---------------------------------------------------------------------------
-test("custom rules are compiled alongside presets", () => {
-  const state = makeState(
-    [makePreset({ enabled: true })],
-    [makePreset({ id: "custom-1", enabled: true, hosts: ["api.example.com"], params: [{ key: "verbose", value: "1" }], builtin: false })]
-  );
-  const rules = FlightDeckRules.compileRules(state);
-
-  expect(rules).toHaveLength(2);
-  expect(rules[0].condition.urlFilter).toBe("||example.com");
-  expect(rules[1].condition.urlFilter).toBe("||api.example.com");
 });
 
 // ---------------------------------------------------------------------------
@@ -140,7 +123,7 @@ test("custom rules are compiled alongside presets", () => {
 // ---------------------------------------------------------------------------
 test("params with special characters are preserved verbatim", () => {
   const state = makeState([
-    makePreset({
+    makeRule({
       enabled: true,
       params: [{ key: "redirect_uri", value: "https://example.com/callback?foo=bar&baz=1" }]
     })
@@ -158,7 +141,7 @@ test("params with special characters are preserved verbatim", () => {
 // ---------------------------------------------------------------------------
 test("rule with multiple params includes all in addOrReplaceParams", () => {
   const state = makeState([
-    makePreset({
+    makeRule({
       enabled: true,
       params: [
         { key: "debug", value: "true" },
@@ -175,10 +158,11 @@ test("rule with multiple params includes all in addOrReplaceParams", () => {
 // All rules disabled → empty output
 // ---------------------------------------------------------------------------
 test("all rules disabled returns empty array", () => {
-  const state = makeState(
-    [makePreset({ enabled: false }), makePreset({ id: "b", enabled: false })],
-    [makePreset({ id: "c", enabled: false, builtin: false })]
-  );
+  const state = makeState([
+    makeRule({ enabled: false }),
+    makeRule({ id: "b", enabled: false }),
+    makeRule({ id: "c", enabled: false })
+  ]);
   expect(FlightDeckRules.compileRules(state)).toEqual([]);
 });
 
@@ -187,8 +171,8 @@ test("all rules disabled returns empty array", () => {
 // ---------------------------------------------------------------------------
 test("duplicate param keys on same host are deduplicated (last wins)", () => {
   const state = makeState([
-    makePreset({ id: "a", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "staging" }] }),
-    makePreset({ id: "b", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "production" }] })
+    makeRule({ id: "a", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "staging" }] }),
+    makeRule({ id: "b", enabled: true, hosts: ["example.com"], params: [{ key: "env", value: "production" }] })
   ]);
   const rules = FlightDeckRules.compileRules(state);
 
@@ -196,4 +180,13 @@ test("duplicate param keys on same host are deduplicated (last wins)", () => {
   expect(rules[0].action.redirect.transform.queryTransform.addOrReplaceParams).toEqual([
     { key: "env", value: "production" }
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Handles missing rules array gracefully
+// ---------------------------------------------------------------------------
+test("compileRules handles state with no rules property", () => {
+  const state = { schemaVersion: 2 };
+  const rules = FlightDeckRules.compileRules(state);
+  expect(rules).toEqual([]);
 });

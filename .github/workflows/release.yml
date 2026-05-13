@@ -124,6 +124,7 @@ jobs:
       - name: Create or update GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.release_notes }}
         shell: bash
         run: |
           TAG="${{ steps.meta.outputs.tag }}"
@@ -134,9 +135,9 @@ jobs:
           else
             gh release create "$TAG" \
               --title "$TAG" \
-              --notes "${{ steps.notes.outputs.release_notes }}" \
+              --notes-file /dev/stdin \
               ${{ steps.prerelease.outputs.flag }} \
-              "$ZIP"
+              "$ZIP" <<< "$RELEASE_NOTES"
           fi
 
       - name: Publish to Chrome Web Store
